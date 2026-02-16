@@ -15,14 +15,13 @@ export const useBoardData = () => {
     try {
       const data = await sql`SELECT * FROM projects ORDER BY name ASC`;
       setProjects(data);
-      // Initialize visibility: All projects on by default if set is empty
       setVisibleProjects(new Set(data.map(p => String(p.id))));
     } catch (err) {
       console.error("Error fetching projects:", err);
     }
   }, []);
 
-  // --- 2. Fetch Board Data (Includes Labels) ---
+  // --- 2. Fetch Board Data ---
   const fetchBoardData = useCallback(async () => {
     try {
       const data = await sql`
@@ -36,7 +35,7 @@ export const useBoardData = () => {
           t.github_issue_number, 
           t.position,
           t.is_archived,
-          t.labels, -- Fetch the labels JSONB
+          t.labels,
           p.id as project_id, 
           p.name as project_name, 
           p.color as project_color, 
@@ -50,7 +49,6 @@ export const useBoardData = () => {
       
       const colMap = new Map();
       
-      // Initialize Columns
       data.forEach(row => {
         if (!colMap.has(row.column_id)) {
           colMap.set(row.column_id, { 
@@ -61,7 +59,6 @@ export const useBoardData = () => {
         }
       });
 
-      // Populate Tasks
       data.forEach(row => {
         if (row.task_id) {
           colMap.get(row.column_id).tasks.push({
@@ -69,7 +66,7 @@ export const useBoardData = () => {
             content: row.content,
             description: row.description || '',
             priority: row.priority,
-            labels: row.labels || [], // Ensure labels array exists
+            labels: row.labels || [],
             github_issue_number: row.github_issue_number,
             projectId: String(row.project_id),
             project_name: row.project_name,
@@ -87,7 +84,7 @@ export const useBoardData = () => {
     }
   }, []);
 
-  // --- 3. Archive Task ---
+  // --- 3. Actions: Archive & Delete ---
   const archiveTask = async (taskId) => {
     try {
       await sql`UPDATE tasks SET is_archived = TRUE WHERE id = ${taskId}`;
@@ -99,7 +96,18 @@ export const useBoardData = () => {
     }
   };
 
-  // --- 4. Close GitHub Issue Wrapper ---
+  const deleteTask = async (taskId) => {
+    try {
+      await sql`DELETE FROM tasks WHERE id = ${taskId}`;
+      await fetchBoardData(); // Refresh board immediately
+      return true;
+    } catch (error) {
+      console.error("Failed to delete task:", error);
+      return false;
+    }
+  };
+
+  // --- 4. GitHub Helper ---
   const closeGitHubIssue = async (repo, number) => {
     try {
       await apiCloseIssue(repo, number);
@@ -135,7 +143,7 @@ export const useBoardData = () => {
     }
   };
 
-  // --- 6. Sync GitHub Issues (Includes Labels) ---
+  // --- 6. Sync Logic ---
   const syncGitHubIssues = async () => {
     setIsSyncing(true);
     try {
@@ -144,18 +152,9 @@ export const useBoardData = () => {
 
       for (const project of linkedProjects) {
         const issues = await fetchGitHubIssues(project.github_repo);
-        
         for (const issue of issues) {
           await sql`
-            INSERT INTO tasks (
-              content, 
-              description, 
-              project_id, 
-              column_id, 
-              github_issue_number, 
-              priority,
-              labels -- Insert labels column
-            )
+            INSERT INTO tasks (content, description, project_id, column_id, github_issue_number, priority, labels)
             VALUES (
               ${issue.title}, 
               ${issue.body || ''}, 
@@ -163,18 +162,17 @@ export const useBoardData = () => {
               1, 
               ${issue.github_issue_number}, 
               'low',
-              ${JSON.stringify(issue.labels)} -- Save labels as JSON
+              ${JSON.stringify(issue.labels)}
             )
             ON CONFLICT (project_id, github_issue_number) 
             DO UPDATE SET 
               content = EXCLUDED.content,
               description = EXCLUDED.description,
-              labels = EXCLUDED.labels -- Update labels if they changed on GitHub
+              labels = EXCLUDED.labels
           `;
           totalProcessed++;
         }
       }
-      
       await fetchBoardData();
       alert(`Sync Complete! Processed ${totalProcessed} items.`);
     } catch (error) {
@@ -219,6 +217,7 @@ export const useBoardData = () => {
     isSaving,
     saveBoard,
     archiveTask,
+    deleteTask, // <--- New Export
     closeGitHubIssue,
     fetchBoardData, 
     fetchProjects, 

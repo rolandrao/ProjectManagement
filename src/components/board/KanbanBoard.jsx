@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { DragDropContext } from '@hello-pangea/dnd';
 import { Loader2, Search, RefreshCw, Plus, Settings2, Eye, EyeOff, Save } from 'lucide-react';
 
-// Modular Component Imports
 import { SolidColumn } from './SolidColumn';
 import { AddProjectModal } from './AddProjectModal';
 import { ProjectSettingsModal } from './ProjectSettingsModal';
@@ -21,7 +20,8 @@ export const KanbanBoard = () => {
     isSaving,
     saveBoard,
     archiveTask,
-    closeGitHubIssue, // Import the close function
+    deleteTask, // <--- Import Delete Function
+    closeGitHubIssue,
     fetchBoardData, 
     fetchProjects, 
     syncGitHubIssues 
@@ -34,7 +34,6 @@ export const KanbanBoard = () => {
   const [configTask, setConfigTask] = useState(null);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
 
-  // --- Drag Logic ---
   const onDragEnd = async (result) => {
     const { destination, source } = result;
 
@@ -46,16 +45,11 @@ export const KanbanBoard = () => {
 
     if (!startCol || !finishCol) return;
 
-    // --- DETECT "DONE" DROP ---
-    // Check if moving TO "Done" from somewhere else
+    // Detect drop into "Done"
     if (finishCol.title.toLowerCase() === 'done' && startCol.title.toLowerCase() !== 'done') {
        const task = startCol.tasks[source.index];
-       
        if (task.github_issue_number && task.github_repo) {
-          const confirmClose = window.confirm(
-             `This task is linked to GitHub Issue #${task.github_issue_number}.\n\nDo you want to close the issue on GitHub?`
-          );
-
+          const confirmClose = window.confirm(`This task is linked to GitHub Issue #${task.github_issue_number}.\n\nDo you want to close the issue on GitHub?`);
           if (confirmClose) {
              const success = await closeGitHubIssue(task.github_repo, task.github_issue_number);
              if (success) alert(`Issue #${task.github_issue_number} marked as completed on GitHub.`);
@@ -63,7 +57,6 @@ export const KanbanBoard = () => {
        }
     }
 
-    // --- Standard Move Logic ---
     setHasUnsavedChanges(true);
 
     if (startCol === finishCol) {
@@ -78,7 +71,6 @@ export const KanbanBoard = () => {
       const startTasks = Array.from(startCol.tasks);
       const [movedTask] = startTasks.splice(source.index, 1);
       
-      // Update internal columnId immediately so modal shows correct status
       const updatedTask = { ...movedTask, columnId: destination.droppableId };
       
       const finishTasks = Array.from(finishCol.tasks);
@@ -108,7 +100,7 @@ export const KanbanBoard = () => {
     <DragDropContext onDragEnd={onDragEnd}>
       <div className="flex flex-col h-full w-full px-4 md:px-8 py-6">
         
-        {/* --- Project Visibility Bar --- */}
+        {/* Visibility Bar */}
         <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mr-2">Visibility:</span>
           {projects.map(p => {
@@ -132,7 +124,7 @@ export const KanbanBoard = () => {
           <button onClick={() => setIsAddModalOpen(true)} className="p-1.5 rounded-full border border-dashed border-slate-300 dark:border-slate-700 text-slate-400 hover:text-blue-500 transition-colors ml-2"><Plus size={16} /></button>
         </div>
 
-        {/* --- Header --- */}
+        {/* Header */}
         <header className="flex justify-between items-center mb-6 flex-shrink-0">
           <div>
             <h1 className="text-2xl font-bold text-slate-800 dark:text-white tracking-tight">Product Roadmap</h1>
@@ -157,7 +149,7 @@ export const KanbanBoard = () => {
           </div>
         </header>
 
-        {/* --- Board --- */}
+        {/* Board Columns */}
         <div className="flex-1 overflow-x-auto pb-4">
           <div className="flex gap-6 h-full min-w-max pr-6">
             {columns.map(col => (
@@ -171,11 +163,10 @@ export const KanbanBoard = () => {
           </div>
         </div>
 
-        {/* --- Modals --- */}
+        {/* Modals */}
         <AddProjectModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onProjectAdded={() => { fetchBoardData(); fetchProjects(); }} />
         <ProjectSettingsModal isOpen={isSettingsOpen} project={selectedProject} onClose={() => { setIsSettingsOpen(false); setSelectedProject(null); }} onProjectUpdated={() => { fetchBoardData(); fetchProjects(); }} />
         
-        {/* Task Config Modal with Archive Capability */}
         <TaskConfigModal 
           isOpen={isConfigOpen} 
           task={configTask} 
@@ -183,7 +174,8 @@ export const KanbanBoard = () => {
           columns={columns}
           onClose={() => { setIsConfigOpen(false); setConfigTask(null); }} 
           onTaskUpdated={fetchBoardData} 
-          onArchive={archiveTask} // Pass the archive function
+          onArchive={archiveTask}
+          onDelete={deleteTask} // <--- Pass Delete Function
         />
       </div>
     </DragDropContext>

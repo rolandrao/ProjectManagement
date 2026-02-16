@@ -1,10 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Loader2, Calendar, Tag, Layers, Archive } from 'lucide-react';
+import { X, Save, Loader2, Calendar, Tag, Layers, Archive, Trash2 } from 'lucide-react';
 import sql from '@/lib/db';
 import { updateGitHubIssue } from '@/lib/github';
 import { getContrastText } from '@/lib/textColor';
 
-export const TaskConfigModal = ({ isOpen, onClose, task, projects, columns, onTaskUpdated, onArchive }) => {
+export const TaskConfigModal = ({ 
+  isOpen, 
+  onClose, 
+  task, 
+  projects, 
+  columns, 
+  onTaskUpdated, 
+  onArchive,
+  onDelete // <--- Receive Delete Function
+}) => {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     content: '',
@@ -32,7 +41,6 @@ export const TaskConfigModal = ({ isOpen, onClose, task, projects, columns, onTa
   const projectColor = currentProject.color || task.project_color || '#94a3b8';
   const textColor = getContrastText(projectColor);
 
-  // Check if current column is "Done"
   const isDoneColumn = columns?.find(c => String(c.id) === String(formData.columnId))?.title.toLowerCase() === 'done';
 
   const handleSave = async (e) => {
@@ -76,6 +84,20 @@ export const TaskConfigModal = ({ isOpen, onClose, task, projects, columns, onTa
     if (success) onClose();
   };
 
+  const handleDelete = async () => {
+    const confirmMessage = task.github_issue_number 
+      ? `WARNING: This task is linked to GitHub Issue #${task.github_issue_number}.\n\nDeleting it here will NOT delete the issue on GitHub, but it will sever the link.\n\nAre you sure you want to delete this card?`
+      : "Are you sure you want to delete this task forever?";
+
+    if (!window.confirm(confirmMessage)) return;
+
+    setLoading(true);
+    const success = await onDelete(task.id);
+    setLoading(false);
+    
+    if (success) onClose();
+  };
+
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[120] flex items-center justify-center p-4">
       <div className="bg-white dark:bg-slate-900 w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden border border-border dark:border-dark-border flex flex-col max-h-[90vh]">
@@ -89,6 +111,7 @@ export const TaskConfigModal = ({ isOpen, onClose, task, projects, columns, onTa
           <button onClick={onClose} className="opacity-70 hover:opacity-100 transition-opacity"><X size={24} /></button>
         </div>
 
+        {/* Form */}
         <form onSubmit={handleSave} className="flex-1 overflow-y-auto p-6 flex flex-col gap-6">
           <div className="flex flex-col gap-4">
             <div>
@@ -135,23 +158,35 @@ export const TaskConfigModal = ({ isOpen, onClose, task, projects, columns, onTa
           </div>
         </form>
 
+        {/* Footer */}
         <div className="p-4 border-t border-border dark:border-dark-border flex justify-between gap-3 bg-slate-50 dark:bg-slate-800/50">
-           {/* Archive Button - Only if in DONE column */}
-           <div>
+           
+           <div className="flex items-center gap-2">
+             {/* Archive Button (Done Column only) */}
              {isDoneColumn && (
                <button 
                  type="button"
                  onClick={handleArchiveClick}
-                 className="px-4 py-2 text-sm font-bold text-amber-600 hover:bg-amber-50 dark:text-amber-500 dark:hover:bg-amber-900/20 rounded-lg flex items-center gap-2 transition-colors"
+                 className="px-3 py-2 text-sm font-bold text-amber-600 hover:bg-amber-50 dark:text-amber-500 dark:hover:bg-amber-900/20 rounded-lg flex items-center gap-2 transition-colors"
                >
-                 <Archive size={16} /> Archive
+                 <Archive size={16} /> <span className="hidden sm:inline">Archive</span>
                </button>
              )}
+
+             {/* Delete Button (Always Visible) */}
+             <button 
+               type="button"
+               onClick={handleDelete}
+               className="px-3 py-2 text-sm font-bold text-red-600 hover:bg-red-50 dark:text-red-500 dark:hover:bg-red-900/20 rounded-lg flex items-center gap-2 transition-colors"
+               title="Delete permanently"
+             >
+               <Trash2 size={16} /> <span className="hidden sm:inline">Delete</span>
+             </button>
            </div>
 
            <div className="flex gap-3">
-             <button type="button" onClick={onClose} className="px-6 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300">Cancel</button>
-             <button onClick={handleSave} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-2 rounded-xl flex items-center gap-2 transition-all disabled:opacity-50">
+             <button type="button" onClick={onClose} className="px-4 py-2 text-sm font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300">Cancel</button>
+             <button onClick={handleSave} disabled={loading} className="bg-blue-600 hover:bg-blue-700 text-white font-bold px-6 py-2 rounded-xl flex items-center gap-2 transition-all disabled:opacity-50">
                {loading ? <Loader2 className="animate-spin" size={18}/> : <Save size={18} />} Save
              </button>
            </div>
