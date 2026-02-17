@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Settings, LogOut, Archive, User } from 'lucide-react';
+import { LayoutDashboard, Settings, LogOut, Archive } from 'lucide-react'; // Removed User icon
 
 export const Navbar = () => {
   const location = useLocation();
@@ -8,26 +8,24 @@ export const Navbar = () => {
   const NavItem = ({ to, icon: Icon, label, onClick }) => {
     const isActive = location.pathname === to;
     
-    // Base classes shared by both
+    // Base classes
     const baseClasses = "relative flex items-center justify-center transition-all duration-300 group";
     
-    // Mobile: Touch targets are larger, no hover states needed usually
+    // Mobile: Touch targets
     const mobileClasses = `
       p-3 rounded-full
       ${isActive ? 'text-white bg-white/20 shadow-lg shadow-white/5' : 'text-slate-400'}
     `;
 
-    // Desktop: Hover effects and specific spacing
+    // Desktop: Hover effects
     const desktopClasses = `
       p-3 rounded-xl w-full
       ${isActive ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/20' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}
     `;
 
-    // Render logic
     const content = (
       <>
         <Icon size={22} strokeWidth={isActive ? 2.5 : 2} />
-        
         {/* Desktop Tooltip */}
         <span className="hidden md:block absolute left-14 top-1/2 -translate-y-1/2 bg-slate-900 text-white text-xs font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 border border-slate-700">
           {label}
@@ -52,10 +50,6 @@ export const Navbar = () => {
 
   return (
     <>
-      {/* CONTAINER STYLES 
-        - Mobile: Fixed at bottom, floating pill, glassmorphism
-        - Desktop: Static sidebar, full height
-      */}
       <nav className={`
         z-50
         
@@ -64,7 +58,7 @@ export const Navbar = () => {
         bg-slate-900/85 backdrop-blur-xl
         border border-white/10
         rounded-2xl shadow-2xl
-        flex flex-row items-center justify-between px-6
+        flex flex-row items-center justify-around px-2 /* Changed justify-between to justify-around for better spacing */
         
         /* Desktop Styles */
         md:relative md:bottom-auto md:left-auto md:right-auto md:h-screen md:w-20
@@ -78,26 +72,16 @@ export const Navbar = () => {
         </div>
 
         {/* Navigation Links Group */}
-        <div className="flex flex-row md:flex-col justify-between w-full md:w-auto md:gap-4 md:flex-1">
+        <div className="flex flex-row md:flex-col justify-around w-full md:w-auto md:gap-4 md:flex-1">
           <NavItem to="/" icon={LayoutDashboard} label="Board" />
           <NavItem to="/archive" icon={Archive} label="Archive" />
           <NavItem to="/settings" icon={Settings} label="Settings" />
-          
-          {/* Mobile Only: Profile is tucked in here for space */}
-          <div className="md:hidden">
-             <NavItem to="/profile" icon={User} label="Profile" />
-          </div>
+          {/* Removed the Profile/User NavItem here */}
         </div>
 
         {/* Desktop Footer Actions */}
         <div className="hidden md:flex flex-col gap-4 w-full mt-auto">
-          <button className="p-3 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-all group relative flex justify-center">
-            <User size={22} />
-            <span className="absolute left-14 top-1/2 -translate-y-1/2 bg-slate-900 text-white text-xs font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 border border-slate-700">
-              Profile
-            </span>
-          </button>
-          
+          {/* We can keep Logout here for desktop as it makes sense even without a profile page */}
           <button className="p-3 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-xl transition-all group relative flex justify-center">
             <LogOut size={22} />
             <span className="absolute left-14 top-1/2 -translate-y-1/2 bg-slate-900 text-white text-xs font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 border border-slate-700">

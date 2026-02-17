@@ -1,181 +1,122 @@
-import React, { useState, useEffect } from 'react';
-import { Save, Trash2, Github, Loader2, ArrowLeft, Layers, AlertTriangle } from 'lucide-react';
+import React, { useState } from 'react';
+import { Layers, Github, Trash2, Edit2, Plus, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import sql from '@/lib/db';
+import { useBoard } from '@/context/BoardContext';
+import { ProjectSettingsModal } from '@/components/board/ProjectSettingsModal';
+import { AddProjectModal } from '@/components/board/AddProjectModal';
 
 export const SettingsPage = () => {
-  const [projects, setProjects] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [savingId, setSavingId] = useState(null);
+  const { projects, loading } = useBoard();
+  
+  // Modal State
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
-  // Fetch projects on mount
-  useEffect(() => {
-    async function load() {
-      try {
-        const data = await sql`SELECT * FROM projects ORDER BY id ASC`;
-        setProjects(data);
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, []);
-
-  // Handle Input Changes
-  const handleChange = (id, field, value) => {
-    setProjects(prev => prev.map(p => 
-      p.id === id ? { ...p, [field]: value } : p
-    ));
+  const handleEditClick = (project) => {
+    setSelectedProject(project);
+    setIsEditModalOpen(true);
   };
 
-  // Save Changes to DB
-  const handleSave = async (project) => {
-    setSavingId(project.id);
-    try {
-      await sql`
-        UPDATE projects 
-        SET name = ${project.name}, github_repo = ${project.github_repo}, color = ${project.color}
-        WHERE id = ${project.id}
-      `;
-      // Optional: Add a toast notification here
-    } catch (e) {
-      alert("Failed to save changes");
-      console.error(e);
-    } finally {
-      setSavingId(null);
-    }
-  };
-
-  // Delete Project
-  const handleDelete = async (id) => {
-    if (!confirm("Are you sure? This will delete the project and ALL associated tasks.")) return;
-    
-    try {
-      await sql`DELETE FROM projects WHERE id = ${id}`;
-      setProjects(prev => prev.filter(p => p.id !== id));
-    } catch (e) {
-      alert("Failed to delete project");
-      console.error(e);
-    }
-  };
-
-  if (loading) return <div className="flex h-screen items-center justify-center"><Loader2 className="animate-spin text-blue-500" /></div>;
+  if (loading) return null; // Or a loader spinner
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 p-8 text-slate-800 dark:text-slate-200 font-sans">
-      <div className="max-w-4xl mx-auto">
-        
-        {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
-          <Link to="/" className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 transition-colors">
-            <ArrowLeft size={24} />
-          </Link>
-          <div>
-            <h1 className="text-3xl font-bold">Settings</h1>
-            <p className="text-slate-500 dark:text-slate-400">Manage your workspace and project configurations</p>
-          </div>
+    <div className="flex flex-col h-full w-full bg-slate-50 dark:bg-slate-950 overflow-y-auto pb-32">
+      
+      {/* Header */}
+      <div className="pt-8 px-6 md:px-10 pb-6">
+        <div className="flex items-center gap-2 text-slate-400 mb-2">
+           <Link to="/" className="hover:text-blue-500 transition-colors"><ArrowLeft size={16} /></Link>
+           <span className="text-xs font-bold uppercase tracking-widest">Configuration</span>
         </div>
-
-        {/* Projects Section */}
-        <section className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 overflow-hidden">
-          <div className="p-6 border-b border-slate-200 dark:border-slate-800 flex justify-between items-center">
-            <h2 className="text-xl font-bold flex items-center gap-2">
-              <Layers className="text-blue-500" /> 
-              Project Configuration
-            </h2>
-            <span className="text-xs font-bold bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-3 py-1 rounded-full">
-              {projects.length} Active Projects
-            </span>
-          </div>
-
-          <div className="divide-y divide-slate-100 dark:divide-slate-800">
-            {projects.map(project => (
-              <div key={project.id} className="p-6 flex flex-col md:flex-row gap-6 items-start md:items-center hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                
-                {/* Color Picker (Simple) */}
-                <div className="flex-shrink-0">
-                  <label className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">Color</label>
-                  <input 
-                    type="color" 
-                    value={project.color}
-                    onChange={(e) => handleChange(project.id, 'color', e.target.value)}
-                    className="w-12 h-12 rounded-lg cursor-pointer border-none bg-transparent"
-                  />
-                </div>
-
-                {/* Main Inputs */}
-                <div className="flex-1 w-full grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-[10px] uppercase font-bold text-slate-400 mb-1 block">Project Name</label>
-                    <input 
-                      className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-blue-500 outline-none"
-                      value={project.name}
-                      onChange={(e) => handleChange(project.id, 'name', e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-[10px] uppercase font-bold text-slate-400 mb-1 block flex items-center gap-1">
-                      <Github size={10} /> GitHub Repo
-                    </label>
-                    <input 
-                      className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-2 text-sm font-mono focus:ring-2 focus:ring-blue-500 outline-none"
-                      value={project.github_repo || ''}
-                      placeholder="owner/repo"
-                      onChange={(e) => handleChange(project.id, 'github_repo', e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="flex items-center gap-2 self-end md:self-center mt-2 md:mt-0">
-                  <button 
-                    onClick={() => handleSave(project)}
-                    disabled={savingId === project.id}
-                    className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
-                    title="Save Changes"
-                  >
-                    {savingId === project.id ? <Loader2 className="animate-spin" size={20}/> : <Save size={20} />}
-                  </button>
-                  <button 
-                    onClick={() => handleDelete(project.id)}
-                    className="p-2 text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
-                    title="Delete Project"
-                  >
-                    <Trash2 size={20} />
-                  </button>
-                </div>
-
-              </div>
-            ))}
-
-            {projects.length === 0 && (
-              <div className="p-12 text-center text-slate-400">
-                No projects found. Go back to the board to add one!
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* Danger Zone / Other Prefs Placeholder */}
-        <section className="mt-8 border border-red-200 dark:border-red-900/30 rounded-2xl p-6 bg-red-50/50 dark:bg-red-900/10">
-          <div className="flex items-center gap-3 text-red-600 dark:text-red-400 mb-2">
-            <AlertTriangle size={20} />
-            <h3 className="font-bold">Danger Zone</h3>
-          </div>
-          <p className="text-sm text-red-500/80 mb-4">
-            These actions are irreversible. Proceed with caution.
-          </p>
+        <div className="flex justify-between items-end">
+          <h1 className="text-3xl font-bold text-slate-900 dark:text-white">Projects</h1>
           <button 
-            onClick={() => confirm("Reset entire database?") && alert("Just kidding, feature not implemented yet!")}
-            className="px-4 py-2 bg-white dark:bg-slate-900 border border-red-200 dark:border-red-800 text-red-500 text-sm font-bold rounded-lg hover:bg-red-50 transition-colors"
+            onClick={() => setIsAddModalOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-bold shadow-lg shadow-blue-600/20 transition-all flex items-center gap-2 text-sm"
           >
-            Reset All Data
+            <Plus size={18} /> <span className="hidden sm:inline">New Project</span>
           </button>
-        </section>
+        </div>
+      </div>
+
+      {/* Grid Layout */}
+      <div className="px-6 md:px-10 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        
+        {projects.map((project) => (
+          <div 
+            key={project.id}
+            className="group relative bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all duration-200"
+          >
+            {/* Project Color Indicator */}
+            <div 
+                className="absolute top-5 right-5 w-3 h-3 rounded-full shadow-sm ring-2 ring-white dark:ring-slate-800"
+                style={{ backgroundColor: project.color }}
+            />
+
+            <div className="flex flex-col h-full justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-3 mb-2">
+                   <div className="p-2 bg-slate-100 dark:bg-slate-800 rounded-lg text-slate-500">
+                      <Layers size={20} />
+                   </div>
+                   <h3 className="font-bold text-lg text-slate-800 dark:text-slate-100 line-clamp-1">
+                     {project.name}
+                   </h3>
+                </div>
+                
+                {/* GitHub Status Pill */}
+                {project.github_repo ? (
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400 text-xs font-bold border border-blue-100 dark:border-blue-800/50">
+                    <Github size={12} />
+                    <span className="truncate max-w-[150px]">{project.github_repo}</span>
+                  </div>
+                ) : (
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-400 dark:bg-slate-800 dark:text-slate-500 text-xs font-bold">
+                    Local Only
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <button 
+                onClick={() => handleEditClick(project)}
+                className="w-full py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-blue-500 hover:text-blue-600 dark:hover:text-blue-400 font-semibold text-sm transition-colors flex items-center justify-center gap-2 group-hover:bg-blue-50/50 dark:group-hover:bg-blue-900/10"
+              >
+                <Edit2 size={14} /> Manage Settings
+              </button>
+            </div>
+          </div>
+        ))}
+
+        {/* Empty State / Add New Card */}
+        <button 
+          onClick={() => setIsAddModalOpen(true)}
+          className="flex flex-col items-center justify-center gap-3 min-h-[160px] rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-blue-500 hover:bg-blue-50/50 dark:hover:bg-slate-800/50 transition-all group"
+        >
+          <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-slate-800 group-hover:bg-blue-100 dark:group-hover:bg-blue-900/30 flex items-center justify-center text-slate-400 group-hover:text-blue-600 transition-colors">
+            <Plus size={24} />
+          </div>
+          <span className="font-bold text-slate-500 group-hover:text-blue-600">Create Project</span>
+        </button>
 
       </div>
+
+      {/* Reusing Existing Modals */}
+      <ProjectSettingsModal 
+        isOpen={isEditModalOpen} 
+        project={selectedProject} 
+        onClose={() => { setIsEditModalOpen(false); setSelectedProject(null); }} 
+        // We pass loadData here because the modal usually handles the update internally,
+        // but if your modal expects to trigger a refresh, we can pass useBoard's loadData.
+        onProjectUpdated={() => { window.location.reload(); }} // Simple refresh or connect to loadData
+      />
+
+      <AddProjectModal 
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onProjectAdded={() => { window.location.reload(); }}
+      />
     </div>
   );
 };

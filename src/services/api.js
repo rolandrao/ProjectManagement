@@ -7,9 +7,23 @@ export const api = {
     return await sql`SELECT * FROM projects ORDER BY name ASC`;
   },
 
-  // --- Board Data ---
+  async updateProject(id, data) {
+    // data = { name, color, github_repo }
+    return await sql`
+      UPDATE projects 
+      SET name = ${data.name}, color = ${data.color}, github_repo = ${data.github_repo}
+      WHERE id = ${id}
+    `;
+  },
+
+  async deleteProject(id) {
+    // Hard delete a project
+    return await sql`DELETE FROM projects WHERE id = ${id}`;
+  },
+
+  // --- Board Data (Active Tasks Only) ---
   async getBoardData() {
-    // Fetches columns, active tasks, and joined project data
+    // Fetches columns, active tasks (not archived), and joined project data
     return await sql`
       SELECT 
         c.id as column_id, 
@@ -35,6 +49,20 @@ export const api = {
     `;
   },
 
+  // --- Archive Data (Inactive Tasks) ---
+  async getArchivedTasks() {
+    return await sql`
+      SELECT 
+        t.*, 
+        p.name as project_name, 
+        p.color as project_color 
+      FROM tasks t
+      LEFT JOIN projects p ON t.project_id = p.id
+      WHERE t.is_archived = TRUE
+      ORDER BY t.id DESC
+    `;
+  },
+
   // --- Task Operations ---
   async updateTask(id, data) {
     // data = { content, description, priority, columnId, projectId }
@@ -51,17 +79,23 @@ export const api = {
   },
 
   async archiveTask(id) {
+    // Soft delete: Hide from board, move to archive list
     return await sql`UPDATE tasks SET is_archived = TRUE WHERE id = ${id}`;
   },
 
+  async restoreTask(id) {
+    // Un-archive: Move back to board
+    return await sql`UPDATE tasks SET is_archived = FALSE WHERE id = ${id}`;
+  },
+
   async deleteTask(id) {
+    // Hard delete: Remove from DB entirely (Used on board or archive page)
     return await sql`DELETE FROM tasks WHERE id = ${id}`;
   },
 
   // --- Batch Updates (Drag & Drop) ---
   async saveBoardPositions(updates) {
     // updates = Array of { id, column_id, position }
-    // We execute these in parallel for speed
     const promises = updates.map(u => sql`
       UPDATE tasks 
       SET column_id = ${u.column_id}, position = ${u.position} 

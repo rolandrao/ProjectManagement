@@ -56,8 +56,8 @@ export const BoardProvider = ({ children }) => {
 
   // --- 2. Fetchers ---
   const loadData = useCallback(async () => {
-    // We don't set loading(true) here to avoid flickering on re-fetches
     try {
+      // Fetch board and projects in parallel
       const [boardData, projectsData] = await Promise.all([
         api.getBoardData(),
         api.getProjects()
@@ -66,7 +66,7 @@ export const BoardProvider = ({ children }) => {
       setColumns(processBoardData(boardData));
       setProjects(projectsData);
       
-      // Init visibility if empty
+      // Initialize visibility on first load
       if (visibleProjects.size === 0) {
         setVisibleProjects(new Set(projectsData.map(p => String(p.id))));
       }
@@ -77,7 +77,7 @@ export const BoardProvider = ({ children }) => {
     }
   }, []);
 
-  // --- 3. Public Actions ---
+  // --- 3. Board Actions ---
   const saveBoard = async (currentColumns) => {
     setIsSaving(true);
     try {
@@ -110,16 +110,47 @@ export const BoardProvider = ({ children }) => {
     }
   };
 
+  // --- 4. Task Operations ---
   const archiveTask = async (id) => {
     const success = await api.archiveTask(id);
-    if (success) await loadData();
+    if (success) await loadData(); // Task disappears from board
+    return success;
+  };
+
+  const restoreTask = async (id) => {
+    const success = await api.restoreTask(id);
+    if (success) await loadData(); // Task reappears on board
     return success;
   };
 
   const deleteTask = async (id) => {
+    // This is "Delete Forever"
     const success = await api.deleteTask(id);
     if (success) await loadData();
     return success;
+  };
+
+  // --- 5. Project Operations ---
+  const updateProject = async (id, data) => {
+    try {
+      await api.updateProject(id, data);
+      await loadData();
+      return true;
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
+  };
+
+  const deleteProject = async (id) => {
+    try {
+      await api.deleteProject(id);
+      await loadData();
+      return true;
+    } catch (e) {
+      console.error(e);
+      return false;
+    }
   };
 
   const toggleProjectVisibility = (id) => {
@@ -131,7 +162,7 @@ export const BoardProvider = ({ children }) => {
     });
   };
 
-  // --- 4. Filtering ---
+  // --- 6. Filtering ---
   const filteredColumns = useMemo(() => {
     return columns.map(col => ({
       ...col,
@@ -143,6 +174,7 @@ export const BoardProvider = ({ children }) => {
   useEffect(() => { loadData(); }, [loadData]);
 
   const value = {
+    // Data
     columns: filteredColumns,
     rawColumns: columns,
     projects,
@@ -150,14 +182,25 @@ export const BoardProvider = ({ children }) => {
     loading,
     isSyncing,
     isSaving,
+    
+    // Setters
     setColumns, // Exposed for Drag & Drop optimistic updates
+    
+    // Core Actions
     loadData,
     saveBoard,
     syncGitHubIssues,
+    
+    // Entity Actions
     archiveTask,
-    deleteTask,
-    toggleProjectVisibility,
-    closeGitHubIssue: api.closeGitHubIssue
+    restoreTask, // <--- New
+    deleteTask,  // <--- Acts as "Delete Forever"
+    closeGitHubIssue: api.closeGitHubIssue,
+
+    // Project Actions
+    updateProject,
+    deleteProject,
+    toggleProjectVisibility
   };
 
   return <BoardContext.Provider value={value}>{children}</BoardContext.Provider>;
