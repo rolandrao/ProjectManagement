@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Search, RotateCcw, Trash2, Calendar, Archive, Inbox } from 'lucide-react';
+import { Search, RotateCcw, Trash2, Inbox } from 'lucide-react';
 import { useBoard } from '@/context/BoardContext';
-import sql from '@/lib/db'; // We can use direct sql here or move to api.js (api.getArchivedTasks is cleaner)
 import { api } from '@/services/api'; 
 
 export const ArchivedPage = () => {
@@ -46,8 +45,8 @@ export const ArchivedPage = () => {
   return (
     <div className="flex flex-col h-full w-full bg-slate-50 dark:bg-slate-950">
       
-      {/* Header Area */}
-      <div className="pt-8 px-6 md:px-10 pb-4 flex-shrink-0">
+      {/* Header Area (Safe Area Aware) */}
+      <div className="pt-[calc(env(safe-area-inset-top)+2rem)] px-6 md:px-10 pb-4 flex-shrink-0">
         <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-1">Archive</h1>
         <p className="text-sm text-slate-500 dark:text-slate-400 mb-6">History of completed work</p>
 
@@ -96,7 +95,6 @@ export const ArchivedPage = () => {
                    >
                      {task.project_name || 'No Project'}
                    </span>
-                   {/* Optional: We could show archived date if we tracked it */}
                 </div>
 
                 {/* Content */}

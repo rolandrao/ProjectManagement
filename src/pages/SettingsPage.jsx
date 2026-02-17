@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Layers, Github, Trash2, Edit2, Plus, ArrowLeft } from 'lucide-react';
+import { Layers, Github, Edit2, Plus, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useBoard } from '@/context/BoardContext';
 import { ProjectSettingsModal } from '@/components/board/ProjectSettingsModal';
@@ -18,13 +18,13 @@ export const SettingsPage = () => {
     setIsEditModalOpen(true);
   };
 
-  if (loading) return null; // Or a loader spinner
+  if (loading) return null;
 
   return (
     <div className="flex flex-col h-full w-full bg-slate-50 dark:bg-slate-950 overflow-y-auto pb-32">
       
-      {/* Header */}
-      <div className="pt-8 px-6 md:px-10 pb-6">
+      {/* Header (Safe Area Aware) */}
+      <div className="pt-[calc(env(safe-area-inset-top)+2rem)] px-6 md:px-10 pb-6">
         <div className="flex items-center gap-2 text-slate-400 mb-2">
            <Link to="/" className="hover:text-blue-500 transition-colors"><ArrowLeft size={16} /></Link>
            <span className="text-xs font-bold uppercase tracking-widest">Configuration</span>
@@ -102,14 +102,12 @@ export const SettingsPage = () => {
 
       </div>
 
-      {/* Reusing Existing Modals */}
+      {/* Modals */}
       <ProjectSettingsModal 
         isOpen={isEditModalOpen} 
         project={selectedProject} 
         onClose={() => { setIsEditModalOpen(false); setSelectedProject(null); }} 
-        // We pass loadData here because the modal usually handles the update internally,
-        // but if your modal expects to trigger a refresh, we can pass useBoard's loadData.
-        onProjectUpdated={() => { window.location.reload(); }} // Simple refresh or connect to loadData
+        onProjectUpdated={() => { window.location.reload(); }} 
       />
 
       <AddProjectModal 

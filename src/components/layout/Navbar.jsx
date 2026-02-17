@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Settings, LogOut, Archive } from 'lucide-react'; // Removed User icon
+import { LayoutDashboard, Settings, LogOut, Archive } from 'lucide-react';
 
 export const Navbar = () => {
   const location = useLocation();
@@ -53,12 +53,13 @@ export const Navbar = () => {
       <nav className={`
         z-50
         
-        /* Mobile Styles */
-        fixed bottom-6 left-6 right-6 h-16
+        /* Mobile Styles: Uses calc() to respect the Home Indicator line */
+        fixed bottom-[calc(env(safe-area-inset-bottom)+1.5rem)] left-6 right-6 h-16
+        
         bg-slate-900/85 backdrop-blur-xl
         border border-white/10
         rounded-2xl shadow-2xl
-        flex flex-row items-center justify-around px-2 /* Changed justify-between to justify-around for better spacing */
+        flex flex-row items-center justify-around px-2
         
         /* Desktop Styles */
         md:relative md:bottom-auto md:left-auto md:right-auto md:h-screen md:w-20
@@ -76,12 +77,10 @@ export const Navbar = () => {
           <NavItem to="/" icon={LayoutDashboard} label="Board" />
           <NavItem to="/archive" icon={Archive} label="Archive" />
           <NavItem to="/settings" icon={Settings} label="Settings" />
-          {/* Removed the Profile/User NavItem here */}
         </div>
 
         {/* Desktop Footer Actions */}
         <div className="hidden md:flex flex-col gap-4 w-full mt-auto">
-          {/* We can keep Logout here for desktop as it makes sense even without a profile page */}
           <button className="p-3 text-slate-400 hover:text-red-400 hover:bg-slate-800 rounded-xl transition-all group relative flex justify-center">
             <LogOut size={22} />
             <span className="absolute left-14 top-1/2 -translate-y-1/2 bg-slate-900 text-white text-xs font-bold px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-50 border border-slate-700">

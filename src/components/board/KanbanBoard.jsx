@@ -36,8 +36,6 @@ export const KanbanBoard = () => {
   const [selectedProject, setSelectedProject] = useState(null);
   const [configTask, setConfigTask] = useState(null);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
-
-  // New State for the "Speed Dial" menu
   const [isProjectMenuOpen, setIsProjectMenuOpen] = useState(false);
 
   // --- Drag & Drop Logic ---
@@ -104,8 +102,13 @@ export const KanbanBoard = () => {
     <DragDropContext onDragEnd={onDragEnd}>
       <div className="flex flex-col h-full w-full bg-slate-50 dark:bg-slate-950 relative">
         
-        {/* --- Header (Simplified) --- */}
-        <header className="flex-shrink-0 pt-4 pb-2 px-4 md:px-8 bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-md z-10 sticky top-0 md:static flex justify-between items-center border-b border-transparent md:border-slate-200 md:dark:border-slate-800">
+        {/* --- Header (Safe Area Aware) --- */}
+        <header className="
+            flex-shrink-0 
+            pt-[calc(env(safe-area-inset-top)+1rem)] pb-2 px-4 md:px-8 
+            bg-slate-50/90 dark:bg-slate-950/90 backdrop-blur-md z-10 sticky top-0 md:static 
+            flex justify-between items-center border-b border-transparent md:border-slate-200 md:dark:border-slate-800
+        ">
             <div>
               <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">Roadmap</h1>
               <p className="text-xs text-slate-500 dark:text-slate-400 font-medium md:hidden">
@@ -134,9 +137,11 @@ export const KanbanBoard = () => {
           </div>
         </div>
 
-
-        {/* --- MOBILE FLOATING CONTROLS (Bottom Right Stack) --- */}
-        <div className="fixed bottom-24 right-6 z-40 flex flex-col items-end gap-3 md:hidden pointer-events-none">
+        {/* --- MOBILE FLOATING CONTROLS (Safe Area Aware) --- */}
+        <div className="
+            fixed bottom-[calc(env(safe-area-inset-bottom)+6rem)] right-6 z-40 
+            flex flex-col items-end gap-3 md:hidden pointer-events-none
+        ">
             
             {/* 1. PROJECT LIST (Expands Upwards) */}
             <div className={`
@@ -217,7 +222,6 @@ export const KanbanBoard = () => {
                 <Plus size={28} />
             </button>
         </div>
-
 
         {/* Desktop Add Task Button (Visible only on md+) */}
         <div className="hidden md:block fixed bottom-8 right-8 z-40">
