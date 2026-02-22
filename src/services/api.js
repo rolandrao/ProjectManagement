@@ -1,5 +1,5 @@
 import sql from '@/lib/db';
-import { fetchGitHubIssues, closeGitHubIssue } from '@/lib/github';
+import { fetchGitHubIssues, closeGitHubIssue, createGitHubIssue, fetchGitHubLabels } from '@/lib/github';
 
 export const api = {
   // --- Projects ---
@@ -8,7 +8,6 @@ export const api = {
   },
 
   async updateProject(id, data) {
-    // data = { name, color, github_repo }
     return await sql`
       UPDATE projects 
       SET name = ${data.name}, color = ${data.color}, github_repo = ${data.github_repo}
@@ -17,30 +16,17 @@ export const api = {
   },
 
   async deleteProject(id) {
-    // Hard delete a project
     return await sql`DELETE FROM projects WHERE id = ${id}`;
   },
 
-  // --- Board Data (Active Tasks Only) ---
+  // --- Board Data ---
   async getBoardData() {
-    // Fetches columns, active tasks (not archived), and joined project data
     return await sql`
       SELECT 
-        c.id as column_id, 
-        c.title as column_title, 
-        c.position as column_position,
-        t.id as task_id, 
-        t.content, 
-        t.description, 
-        t.priority, 
-        t.github_issue_number, 
-        t.position as task_position,
-        t.is_archived,
-        t.labels,
-        p.id as project_id, 
-        p.name as project_name, 
-        p.color as project_color, 
-        p.github_repo as github_repo
+        c.id as column_id, c.title as column_title, c.position as column_position,
+        t.id as task_id, t.content, t.description, t.priority, t.github_issue_number, 
+        t.position as task_position, t.is_archived, t.labels,
+        p.id as project_id, p.name as project_name, p.color as project_color, p.github_repo as github_repo
       FROM columns c
       LEFT JOIN tasks t ON c.id = t.column_id AND t.is_archived = FALSE
       LEFT JOIN projects p ON t.project_id = p.id
@@ -49,13 +35,9 @@ export const api = {
     `;
   },
 
-  // --- Archive Data (Inactive Tasks) ---
   async getArchivedTasks() {
     return await sql`
-      SELECT 
-        t.*, 
-        p.name as project_name, 
-        p.color as project_color 
+      SELECT t.*, p.name as project_name, p.color as project_color 
       FROM tasks t
       LEFT JOIN projects p ON t.project_id = p.id
       WHERE t.is_archived = TRUE
@@ -64,8 +46,40 @@ export const api = {
   },
 
   // --- Task Operations ---
+  
+  // NEW: Create Task with GitHub auto-routing & dynamic Labels
+  async createTask(data) {
+    let finalIssueNumber = data.github_issue_number || null;
+    let finalRepo = data.github_repo || null;
+    let labelObjects = data.labels || []; // Array of objects: [{name: 'bug', color: 'd73a4a'}]
+
+    // Auto-create on GitHub if no manual URL was provided but the project is linked
+    if (!finalIssueNumber && finalRepo) {
+        // GitHub API only wants the string names (e.g., ["bug", "frontend"])
+        const labelNames = labelObjects.map(l => l.name);
+        
+        const newIssueNum = await createGitHubIssue(finalRepo, data.content, data.description, labelNames);
+        if (newIssueNum) {
+            finalIssueNumber = newIssueNum;
+        }
+    }
+
+    // Insert into local DB: We stringify the full label objects so the board can render the colors!
+    return await sql`
+      INSERT INTO tasks (content, description, project_id, column_id, priority, github_issue_number, labels)
+      VALUES (
+        ${data.content}, 
+        ${data.description}, 
+        ${data.projectId}, 
+        ${data.columnId}, 
+        ${data.priority},
+        ${finalIssueNumber},
+        ${JSON.stringify(labelObjects)} 
+      )
+    `;
+  },
+
   async updateTask(id, data) {
-    // data = { content, description, priority, columnId, projectId }
     return await sql`
       UPDATE tasks 
       SET 
@@ -79,23 +93,19 @@ export const api = {
   },
 
   async archiveTask(id) {
-    // Soft delete: Hide from board, move to archive list
     return await sql`UPDATE tasks SET is_archived = TRUE WHERE id = ${id}`;
   },
 
   async restoreTask(id) {
-    // Un-archive: Move back to board
     return await sql`UPDATE tasks SET is_archived = FALSE WHERE id = ${id}`;
   },
 
   async deleteTask(id) {
-    // Hard delete: Remove from DB entirely (Used on board or archive page)
     return await sql`DELETE FROM tasks WHERE id = ${id}`;
   },
 
   // --- Batch Updates (Drag & Drop) ---
   async saveBoardPositions(updates) {
-    // updates = Array of { id, column_id, position }
     const promises = updates.map(u => sql`
       UPDATE tasks 
       SET column_id = ${u.column_id}, position = ${u.position} 
@@ -106,6 +116,12 @@ export const api = {
   },
 
   // --- GitHub Integrations ---
+  
+  // Expose the GitHub Labels fetcher to the UI
+  async getGitHubLabels(repo) {
+    return await fetchGitHubLabels(repo);
+  },
+
   async closeGitHubIssue(repo, number) {
     try {
       await closeGitHubIssue(repo, number);
