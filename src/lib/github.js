@@ -29,16 +29,20 @@ export const fetchGitHubIssues = async (repoString) => {
       per_page: 100
     });
 
-    return data.map(issue => ({
-      title: issue.title,
-      body: issue.body,
-      github_issue_number: issue.number,
-      // Map labels to a clean format
-      labels: issue.labels.map(l => ({
-        name: l.name,
-        color: l.color, // GitHub returns color without '#', e.g., "d73a4a"
-        description: l.description
-      }))
+    // Note: GitHub REST API considers PRs as issues. 
+    // Filtering out PRs so we only get actual issues.
+    return data
+      .filter(issue => !issue.pull_request)
+      .map(issue => ({
+        title: issue.title,
+        body: issue.body,
+        github_issue_number: issue.number,
+        // Map labels to a clean format
+        labels: issue.labels.map(l => ({
+          name: l.name,
+          color: l.color, // GitHub returns color without '#', e.g., "d73a4a"
+          description: l.description
+        }))
     }));
   } catch (error) {
     console.error("GitHub Fetch Error:", error);
@@ -47,25 +51,55 @@ export const fetchGitHubIssues = async (repoString) => {
 };
 
 /**
- * 2. CREATE: Post a new issue to GitHub
+ * 1.5 FETCH LABELS: Get all available labels for a repo
  */
-export const createGitHubIssue = async (repoString, title, body) => {
+export const fetchGitHubLabels = async (repoString) => {
   const repo = parseRepoString(repoString);
-  if (!repo) throw new Error("Invalid Repo Format");
+  if (!repo) return [];
 
-  const { data } = await octokit.request('POST /repos/{owner}/{repo}/issues', {
-    owner: repo.owner,
-    repo: repo.repo,
-    title: title,
-    body: body || "",
-  });
+  try {
+    const { data } = await octokit.request('GET /repos/{owner}/{repo}/labels', {
+      owner: repo.owner,
+      repo: repo.repo,
+      per_page: 100
+    });
 
-  return {
-    github_issue_number: data.number,
-    html_url: data.html_url
-  };
+    return data.map(l => ({
+      name: l.name,
+      color: l.color, // e.g., "d73a4a"
+      description: l.description
+    }));
+  } catch (error) {
+    console.error("Failed to fetch labels:", error);
+    return [];
+  }
 };
 
+/**
+ * 2. CREATE: Post a new issue to GitHub
+ */
+export const createGitHubIssue = async (repoString, title, body, labels = []) => { // <--- Added labels
+  const repo = parseRepoString(repoString);
+  if (!repo) {
+    console.error("Invalid Repo Format:", repoString);
+    return null;
+  }
+
+  try {
+    const { data } = await octokit.request('POST /repos/{owner}/{repo}/issues', {
+      owner: repo.owner,
+      repo: repo.repo,
+      title: title,
+      body: body || "",
+      labels: labels // <--- Send labels to GitHub
+    });
+
+    return data.number; 
+  } catch (error) {
+    console.error("Failed to create GitHub issue:", error);
+    return null; 
+  }
+};
 
 /**
  * 3. UPDATE: Sync local changes back to a GitHub issue
@@ -102,9 +136,6 @@ export const updateGitHubIssue = async (repoString, issueNumber, title, body) =>
   }
 };
 
-
-// ... existing imports
-
 /**
  * 4. CLOSE: Close an issue on GitHub
  */
@@ -119,8 +150,9 @@ export const closeGitHubIssue = async (repoString, issueNumber) => {
       issue_number: issueNumber,
       state: 'closed'
     });
+    return true;
   } catch (error) {
     console.error("Failed to close GitHub issue:", error);
-    throw error;
+    return false;
   }
 };
